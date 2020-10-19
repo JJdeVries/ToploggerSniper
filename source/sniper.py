@@ -1,13 +1,19 @@
+"""
+The sniper class for the Toplogger webapp.
+"""
 import typing
-import webbot
 import calendar
-import shift_time
 import time
+
+import webbot
+from . import shift_time
 
 _TIMESPLIT = "—"
 
 
 class ToploggerSniper:
+    """ The sniper class."""
+
     def __init__(self, username: str, password: str):
         self.__browser: webbot.Browser = webbot.Browser(showWindow=True)
         self.__browser.go_to("https://app.toplogger.nu")
@@ -83,8 +89,9 @@ class ToploggerSniper:
         return availables
 
     def check_time(
-        self, area: str, month: int, day: int, check_time: shift_time.ShiftTime
-    ):
+        self, area: str, month: int, day: int, check_time: shift_time.TimeSpec
+    ) -> bool:
+        """ Check whether a time at a specified month/day is available."""
         # Should we check whether we're still logged in?
         self._goto_reservations(area)
         self._goto_day(month, day)
@@ -99,5 +106,6 @@ class ToploggerSniper:
 
         for idx, shift in enumerate(shifts):
             if shift.is_time_in_shift(check_time):
-                print_str = "POSSIBLE" if bookings[idx] else "taken :-("
-                print(f"The relevant shift is: {shift} which is : {print_str}")
+                if bookings[idx]:
+                    return True
+        return False

@@ -1,7 +1,11 @@
-import typing
+"""
+Time handling for the sniper.
+"""
 
 
 class TimeSpec:
+    """ 24 Our time specification."""
+
     def __init__(self, hour: int, minute: int, am_pm: str = ""):
         self._hour = int(hour)
         self._minute = int(minute)
@@ -25,10 +29,12 @@ class TimeSpec:
 
     @property
     def hour(self) -> int:
+        """ The hour part."""
         return self._hour
 
     @property
     def minute(self) -> int:
+        """ The minute part."""
         return self._minute
 
     def __le__(self, other: "TimeSpec") -> bool:
@@ -52,15 +58,20 @@ def time_conversion(input_time: str) -> TimeSpec:
     stripped_time = input_time.strip()
     hour, minute = stripped_time[:-2].split(":")
     am_pm = stripped_time[-2:]
-    return TimeSpec(hour, minute, am_pm)
+    return TimeSpec(int(hour), int(minute), am_pm)
 
 
 class ShiftTime:
+    """ A shift class, with start and end time."""
+
     def __init__(self, start_time: str, end_time: str):
         self._start_time: TimeSpec = time_conversion(start_time)
         self._end_time: TimeSpec = time_conversion(end_time)
 
     def is_time_in_shift(self, rel_time: TimeSpec) -> bool:
+        """Check whether a time is within this shift.
+        Meaning it is at or after the start time, and before the end time.
+        """
         return self._start_time <= rel_time and self._end_time > rel_time
 
     def __str__(self) -> str:
