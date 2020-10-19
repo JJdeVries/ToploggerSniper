@@ -3,40 +3,62 @@ Main functionality.
 """
 
 import os
-import time
+import threading
 
 import ruamel.yaml
 import sniper
-from . import shift_time
+import schedule
+
+
+def update(sniper_obj: sniper.ToploggerSniper, sched: schedule.Schedule):
+    """ The update method."""
+    print("updating")
+    update_list = sched.get_dates()
+    for month, day_dict in update_list.items():
+        for day, time_specs in day_dict.items():
+            avails = sniper_obj.check_time(month, day, time_specs)
+            for avail, time_spec in zip(avails, time_specs):
+                print_str = "Available" if avail else "NOPE :-("
+                print(f"time {time_spec}: {print_str}")
+    print("fin")
 
 
 def main():
     """ The actual running method."""
     pwd = None
     usr = None
+    yaml = ruamel.yaml.YAML()
 
+    # Read in the username / password
     if not os.path.exists("secrets.yaml"):
         raise ValueError("Expected a 'secrets.yaml' file")
 
     with open("secrets.yaml") as config_file:
-        yaml = ruamel.yaml.YAML()
         data = yaml.load(config_file)
-
-        pwd = data.get("password")
-        usr = data.get("username")
-
+    pwd = data.get("password")
+    usr = data.get("username")
     if pwd is None:
         raise ValueError("Set the 'password' field in secrets.yaml")
     if usr is None:
         raise ValueError("Set the 'username' field in the secrets.yaml")
 
-    sniper_obj = sniper.ToploggerSniper(usr, pwd)
-    check_time = shift_time.TimeSpec(20, 30)
-    sniper_obj.check_time("Bovenverdieping", 10, 25, check_time)
+    # Read in the schedule configuration
+    if not os.path.exists("schedule.yaml"):
+        raise ValueError("Expected a 'schedule.yaml' file")
+    with open("schedule.yaml") as config_file:
+        data = yaml.load(config_file)
 
-    time.sleep(10.0)
-    print("retrying")
-    sniper_obj.check_time("Bovenverdieping", 10, 20, check_time)
+    sched = schedule.Schedule(data)
+    sniper_obj = sniper.ToploggerSniper(usr, pwd, "Monk Eindhoven")
+
+    update_thread = threading.Timer(10.0, update, args=(sniper_obj, sched))
+
+    # update_thread.start()
+    update(sniper_obj, sched)
+    if update_thread.is_alive():
+        input("Press [enter] to stop thread\n")
+        update_thread.cancel()
+        update_thread.join()
 
 
 if __name__ == "__main__":

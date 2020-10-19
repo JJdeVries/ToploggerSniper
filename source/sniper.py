@@ -3,10 +3,11 @@ The sniper class for the Toplogger webapp.
 """
 import typing
 import calendar
+import datetime
 import time
 
 import webbot
-from . import shift_time
+import shift_time
 
 _TIMESPLIT = "—"
 
@@ -14,17 +15,32 @@ _TIMESPLIT = "—"
 class ToploggerSniper:
     """ The sniper class."""
 
-    def __init__(self, username: str, password: str):
+    def __init__(self, username: str = "", password: str = "", gym: str = ""):
         self.__browser: webbot.Browser = webbot.Browser(showWindow=True)
         self.__browser.go_to("https://app.toplogger.nu")
 
         self.__usr = username
         self.__pwd = password
+        self.__gym = gym
 
         # Intially we login
-        self._do_login()
+        # self._do_login()
+        self._pick_gym()
+
+    def _pick_gym(self):
+        """ Let's pick the correct gym. Can be used anonymously"""
+        self.__browser.click(classname="v-input__slot")
+        self.__browser.click("Select Gym")
+
+        # Now wait till gyms loaded
+        time.sleep(0.5)
+        self.__browser.click(self.__gym)
+        time.sleep(0.5)
+        # TODO: How to check that the gym is available / chosen
+        self.__browser.click("SELECT GYM")
 
     def _do_login(self):
+        """ Log into the toplogger site. In principle not necessary to check availability."""
         # TODO: Probably we should check that the login/password fields are present.
         self.__browser.type(self.__usr, into="Email")
         self.__browser.type(self.__pwd, into="Password")
@@ -82,6 +98,9 @@ class ToploggerSniper:
                 availables.append(True)
             elif book_string.text == "FULLY BOOKED":
                 availables.append(False)
+            elif book_string.text == "CANCEL BOOKING":
+                # We've already taken this slot
+                availables.append(False)
             else:
                 print(f"UNKNOWN!! {book_string.text}")
                 availables.append(False)
@@ -89,23 +108,28 @@ class ToploggerSniper:
         return availables
 
     def check_time(
-        self, area: str, month: int, day: int, check_time: shift_time.TimeSpec
-    ) -> bool:
+        self, check_times: typing.List[datetime.datetime], area: str
+    ) -> typing.List[bool]:
         """ Check whether a time at a specified month/day is available."""
-        # Should we check whether we're still logged in?
-        self._goto_reservations(area)
-        self._goto_day(month, day)
+        # Should we check whether we're still logged in? / gym chosen
+        ret_list = []
 
-        shifts = self._find_shifts()
-        bookings = self._find_available()
+        for check_time in check_times:
+            self._goto_reservations(area)
+            self._goto_day(check_time.month, check_time.day)
 
-        if len(shifts) != len(bookings):
-            print(
-                f"Unexpected unequal amount of bookings {len(shifts)} vs {len(bookings)}"
-            )
+            shifts = self._find_shifts()
+            bookings = self._find_available()
 
-        for idx, shift in enumerate(shifts):
-            if shift.is_time_in_shift(check_time):
-                if bookings[idx]:
-                    return True
-        return False
+            if len(shifts) != len(bookings):
+                print(
+                    f"Unexpected unequal amount of bookings {len(shifts)} vs {len(bookings)}"
+                )
+            for avail, shift in zip(bookings, shifts):
+                if shift.is_time_in_shift(check_time):
+                    ret_list.append(avail)
+                    break
+            else:
+                # There is no shift for the configured time
+                ret_list.append(False)
+        return ret_list
