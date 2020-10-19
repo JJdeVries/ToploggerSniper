@@ -10,16 +10,13 @@ import sniper
 import schedule
 
 
-def update(sniper_obj: sniper.ToploggerSniper, sched: schedule.Schedule):
+def update(sniper_obj: sniper.ToploggerSniper, sched: schedule.ScheduleHandler):
     """ The update method."""
     print("updating")
-    update_list = sched.get_dates()
-    for month, day_dict in update_list.items():
-        for day, time_specs in day_dict.items():
-            avails = sniper_obj.check_time(month, day, time_specs)
-            for avail, time_spec in zip(avails, time_specs):
-                print_str = "Available" if avail else "NOPE :-("
-                print(f"time {time_spec}: {print_str}")
+    sched.update()
+
+    for inst in sched.get_dates():
+        sniper_obj.check_time(inst)
     print("fin")
 
 
@@ -48,7 +45,7 @@ def main():
     with open("schedule.yaml") as config_file:
         data = yaml.load(config_file)
 
-    sched = schedule.Schedule(data)
+    sched = schedule.ScheduleHandler(data)
     sniper_obj = sniper.ToploggerSniper(usr, pwd, "Monk Eindhoven")
 
     update_thread = threading.Timer(10.0, update, args=(sniper_obj, sched))

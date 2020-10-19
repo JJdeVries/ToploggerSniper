@@ -3,11 +3,11 @@ The sniper class for the Toplogger webapp.
 """
 import typing
 import calendar
-import datetime
 import time
 
 import webbot
 import shift_time
+import schedule
 
 _TIMESPLIT = "—"
 
@@ -91,45 +91,40 @@ class ToploggerSniper:
             shifts.append(shift_time.ShiftTime(start, end))
         return shifts
 
-    def _find_available(self) -> typing.List[bool]:
-        availables: typing.List[bool] = []
+    def _find_shift_states(self) -> typing.List[schedule.ShiftState]:
+        states: typing.List[schedule.ShiftState] = []
+
         for book_string in self.__browser.find_elements("ook"):
             if book_string.text == "BOOK":
-                availables.append(True)
+                states.append(schedule.ShiftState.AVAILABLE)
             elif book_string.text == "FULLY BOOKED":
-                availables.append(False)
+                states.append(schedule.ShiftState.FULL)
             elif book_string.text == "CANCEL BOOKING":
                 # We've already taken this slot
-                availables.append(False)
+                states.append(schedule.ShiftState.TAKEN)
             else:
-                print(f"UNKNOWN!! {book_string.text}")
-                availables.append(False)
+                print(f"UNKNOWN!! '{book_string.text}''")
+                states.append(schedule.ShiftState.UNKNOWN)
 
-        return availables
+        return states
 
-    def check_time(
-        self, check_times: typing.List[datetime.datetime], area: str
-    ) -> typing.List[bool]:
+    def check_time(self, sched_inst: schedule.ScheduleInstance):
         """ Check whether a time at a specified month/day is available."""
         # Should we check whether we're still logged in? / gym chosen
-        ret_list = []
+        self._goto_reservations(sched_inst.area)
+        self._goto_day(sched_inst.month, sched_inst.day)
 
-        for check_time in check_times:
-            self._goto_reservations(area)
-            self._goto_day(check_time.month, check_time.day)
+        shifts = self._find_shifts()
+        states = self._find_shift_states()
 
-            shifts = self._find_shifts()
-            bookings = self._find_available()
-
-            if len(shifts) != len(bookings):
-                print(
-                    f"Unexpected unequal amount of bookings {len(shifts)} vs {len(bookings)}"
-                )
-            for avail, shift in zip(bookings, shifts):
-                if shift.is_time_in_shift(check_time):
-                    ret_list.append(avail)
-                    break
-            else:
-                # There is no shift for the configured time
-                ret_list.append(False)
-        return ret_list
+        if len(shifts) != len(states):
+            print(
+                f"Unexpected unequal amount of bookings {len(shifts)} vs {len(states)}"
+            )
+        for state, shift in zip(states, shifts):
+            if shift.is_time_in_shift(sched_inst.time):
+                sched_inst.state = state
+                break
+        else:
+            # There is no shift for the configured time
+            sched_inst.state = schedule.ShiftState.UNKNOWN

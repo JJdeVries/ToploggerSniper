@@ -31,11 +31,33 @@ class ScheduleInstance:
         self._datetime = datetime_spec
         self._area = area
         self._state: ShiftState = ShiftState.UNKNOWN
+        self._statechange: bool = False
+
+    def processed(self):
+        """ Call this method once a statechange was processed."""
+        self._statechange = False
 
     @property
     def time(self):
         """ The time of this instance."""
         return self._datetime
+
+    @property
+    def has_update(self) -> bool:
+        """ True if a statechange happened."""
+        return self._statechange
+
+    @property
+    def state(self) -> ShiftState:
+        """ The current state."""
+        return self._state
+
+    @state.setter
+    def state(self, new_state: ShiftState):
+        """ Set the new state."""
+        if self.state != new_state:
+            self._state = new_state
+            self._statechange = True
 
 
 class ScheduleHandler:
@@ -49,8 +71,14 @@ class ScheduleHandler:
 
         self.__read_config(config["timespec"])
 
-        self.__current_specs: typing.List[datetime.time] = []
+        self.__current_specs: typing.List[ScheduleInstance] = []
         self.__last_updateday = datetime.datetime.now()
+
+    def get_dates(self) -> typing.Generator[ScheduleInstance, None, None]:
+        """ Get the current dates that are not yet taken."""
+        for inst in self.__current_specs:
+            if not inst.state == ShiftState.TAKEN:
+                yield inst
 
     def update(self):
         """ Update the schedule."""
@@ -73,6 +101,7 @@ class ScheduleHandler:
 
         for timespec in self._configs.get(dayname, []):
             timing = datetime.datetime.combine(day.date(), timespec)
+            # TODO: We should get this area string from somewhere!
             ret_list.append(ScheduleInstance(timing, "Bovenverdieping"))
         return ret_list
 
