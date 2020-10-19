@@ -1,3 +1,5 @@
 toplogger_vscode.code-workspace
 *.log
 secrets.yaml
+.vscode
+__pycache__
