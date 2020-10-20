@@ -21,9 +21,20 @@ def __convert_am_pm(time: datetime.time, am_pm: str) -> datetime.time:
 def time_conversion(input_time: str) -> datetime.time:
     """Convert a input string to datetime.time"""
     hour, minute = input_time.split(":")
-    # TODO: There could be an am/pm time definition here?
-    #       it seems that the side was updated to 24hr time
-    return datetime.time(int(hour), int(minute))
+
+    # Sometimes the string has AM/PM notation. Let's check that.
+    minute = minute.strip().lower()
+    if any(match in minute for match in ["am", "pm"]):
+        # Let's strip off the am/pm
+        am_pm = minute[-2:]
+        minute = minute[:-2]
+
+        time = datetime.time(int(hour), int(minute))
+        __convert_am_pm(time, am_pm)
+    else:
+        time = datetime.time(int(hour), int(minute))
+
+    return time
 
 
 class ShiftTime:

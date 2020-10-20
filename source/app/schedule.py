@@ -68,6 +68,7 @@ class ScheduleHandler:
     """ Obtain the schedule configuration and get the relevant timespecs."""
 
     def __init__(self, config):
+        self._gym = config["gym"]
         self.__plan_advance = config.get("days", 6)
         self._configs: SchedDict = {k.lower(): [] for k in calendar.day_name}
 
@@ -75,6 +76,11 @@ class ScheduleHandler:
 
         self.__current_specs: typing.List[ScheduleInstance] = []
         self.__last_updateday = datetime.datetime.now() - datetime.timedelta(days=1)
+
+    @property
+    def gym(self) -> str:
+        """ The gym of this schedule handler."""
+        return self._gym
 
     def get_dates(self) -> typing.Generator[ScheduleInstance, None, None]:
         """ Get the current dates that are not yet taken."""
@@ -88,7 +94,7 @@ class ScheduleHandler:
         today = datetime.datetime.now()
 
         # Remove any instances that have passed in time.
-        self.__current_specs[:] = [x for x in self.__current_specs if x >= today]
+        self.__current_specs[:] = [x for x in self.__current_specs if x.time >= today]
 
         # Let's generate new specs if necessary
         generate_day = today + datetime.timedelta(days=self.__plan_advance)

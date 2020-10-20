@@ -12,12 +12,10 @@ from app.schedule import ScheduleHandler
 
 def update(sniper_obj: ToploggerSniper, sched: ScheduleHandler):
     """ The update method."""
-    print("updating")
     sched.update()
 
     for inst in sched.get_dates():
         sniper_obj.update_shift_state(inst)
-    print("fin")
 
 
 def main():
@@ -46,9 +44,9 @@ def main():
         data = yaml.load(config_file)
 
     sched = ScheduleHandler(data)
-    sniper_obj = ToploggerSniper(usr, pwd, "Monk Eindhoven")
+    sniper_obj = ToploggerSniper(usr, pwd, sched.gym)
 
-    update_thread = threading.Timer(10.0, update, args=(sniper_obj, sched))
+    update_thread = threading.Timer(300.0, update, args=(sniper_obj, sched))
 
     # update_thread.start()
     update(sniper_obj, sched)
