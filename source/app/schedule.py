@@ -5,12 +5,10 @@ import typing
 import datetime
 import calendar
 import enum
-from collections import defaultdict
+from collections import namedtuple
 
-import shift_time
-
-DaySchedule = typing.Dict[int, typing.List[shift_time.TimeSpec]]
-MonthSchedule = typing.Dict[int, DaySchedule]
+ListInst = namedtuple("ListInst", ["time", "area"])
+SchedDict = typing.Dict[str, typing.List[ListInst]]
 
 
 class ShiftState(enum.Enum):
@@ -43,6 +41,11 @@ class ScheduleInstance:
         return self._datetime
 
     @property
+    def area(self):
+        """ The area of this schedule instance."""
+        return self._area
+
+    @property
     def has_update(self) -> bool:
         """ True if a statechange happened."""
         return self._statechange
@@ -58,6 +61,7 @@ class ScheduleInstance:
         if self.state != new_state:
             self._state = new_state
             self._statechange = True
+            print(f"Climbing at {self.area} at {self.time} is now: {self._state}")
 
 
 class ScheduleHandler:
@@ -65,14 +69,12 @@ class ScheduleHandler:
 
     def __init__(self, config):
         self.__plan_advance = config.get("days", 6)
-        self._configs: typing.Dict[str, typing.List[shift_time.TimeSpec]] = defaultdict(
-            list
-        )
+        self._configs: SchedDict = {k.lower(): [] for k in calendar.day_name}
 
         self.__read_config(config["timespec"])
 
         self.__current_specs: typing.List[ScheduleInstance] = []
-        self.__last_updateday = datetime.datetime.now()
+        self.__last_updateday = datetime.datetime.now() - datetime.timedelta(days=1)
 
     def get_dates(self) -> typing.Generator[ScheduleInstance, None, None]:
         """ Get the current dates that are not yet taken."""
@@ -90,9 +92,8 @@ class ScheduleHandler:
 
         # Let's generate new specs if necessary
         generate_day = today + datetime.timedelta(days=self.__plan_advance)
-        while self.__last_updateday.day != generate_day:
+        while self.__last_updateday.date() <= generate_day.date():
             self.__last_updateday += datetime.timedelta(days=1)
-
             self.__current_specs += self._generate_specs(self.__last_updateday)
 
     def _generate_specs(self, day: datetime.datetime) -> typing.List[ScheduleInstance]:
@@ -100,9 +101,8 @@ class ScheduleHandler:
         ret_list = []
 
         for timespec in self._configs.get(dayname, []):
-            timing = datetime.datetime.combine(day.date(), timespec)
-            # TODO: We should get this area string from somewhere!
-            ret_list.append(ScheduleInstance(timing, "Bovenverdieping"))
+            timing = datetime.datetime.combine(day.date(), timespec.time)
+            ret_list.append(ScheduleInstance(timing, timespec.area))
         return ret_list
 
     def __read_config(self, config: dict):
@@ -113,6 +113,6 @@ class ScheduleHandler:
             input_list = config.get(day, []) + config.get(day[:3], [])
 
             for spec in input_list:
-                new_spec = shift_time.TimeSpec(spec["hour"], spec.get("minute", 0))
-                new_spec.area = spec["area"]
-                self._configs[day].append(new_spec)
+                spec_time = datetime.time(spec["hour"], spec.get("minute", 0))
+                list_inst = ListInst(time=spec_time, area=spec["area"])
+                self._configs[day].append(list_inst)

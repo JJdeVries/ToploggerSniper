@@ -16,7 +16,7 @@ class ToploggerSniper:
     """ The sniper class."""
 
     def __init__(self, username: str = "", password: str = "", gym: str = ""):
-        self.__browser: webbot.Browser = webbot.Browser(showWindow=True)
+        self.__browser: webbot.Browser = webbot.Browser(showWindow=False)
         self.__browser.go_to("https://app.toplogger.nu")
 
         self.__usr = username
@@ -56,9 +56,7 @@ class ToploggerSniper:
         header_title = self.__browser.find_elements(
             tag="div", classname="v-toolbar__title"
         )[0]
-        if header_title.text == "Reservations":
-            print("Already in reservations")
-        else:
+        if header_title.text != "Reservations":
             # Now we navigate to the reservations page
             self.__browser.click(classname="v-input__slot")
             self.__browser.click("Reservations")
@@ -94,7 +92,9 @@ class ToploggerSniper:
     def _find_shift_states(self) -> typing.List[schedule.ShiftState]:
         states: typing.List[schedule.ShiftState] = []
 
-        for book_string in self.__browser.find_elements("ook"):
+        for book_string in self.__browser.find_elements(
+            "BOOK", tag="button", loose_match=False
+        ):
             if book_string.text == "BOOK":
                 states.append(schedule.ShiftState.AVAILABLE)
             elif book_string.text == "FULLY BOOKED":
@@ -108,11 +108,11 @@ class ToploggerSniper:
 
         return states
 
-    def check_time(self, sched_inst: schedule.ScheduleInstance):
-        """ Check whether a time at a specified month/day is available."""
+    def update_shift_state(self, sched_inst: schedule.ScheduleInstance):
+        """ Update the shift state of the given schedule instance."""
         # Should we check whether we're still logged in? / gym chosen
         self._goto_reservations(sched_inst.area)
-        self._goto_day(sched_inst.month, sched_inst.day)
+        self._goto_day(sched_inst.time.month, sched_inst.time.day)
 
         shifts = self._find_shifts()
         states = self._find_shift_states()
@@ -122,7 +122,7 @@ class ToploggerSniper:
                 f"Unexpected unequal amount of bookings {len(shifts)} vs {len(states)}"
             )
         for state, shift in zip(states, shifts):
-            if shift.is_time_in_shift(sched_inst.time):
+            if shift.is_time_in_shift(sched_inst.time.time()):
                 sched_inst.state = state
                 break
         else:

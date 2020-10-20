@@ -6,17 +6,17 @@ import os
 import threading
 
 import ruamel.yaml
-import sniper
-import schedule
+from app.sniper import ToploggerSniper
+from app.schedule import ScheduleHandler
 
 
-def update(sniper_obj: sniper.ToploggerSniper, sched: schedule.ScheduleHandler):
+def update(sniper_obj: ToploggerSniper, sched: ScheduleHandler):
     """ The update method."""
     print("updating")
     sched.update()
 
     for inst in sched.get_dates():
-        sniper_obj.check_time(inst)
+        sniper_obj.update_shift_state(inst)
     print("fin")
 
 
@@ -45,8 +45,8 @@ def main():
     with open("schedule.yaml") as config_file:
         data = yaml.load(config_file)
 
-    sched = schedule.ScheduleHandler(data)
-    sniper_obj = sniper.ToploggerSniper(usr, pwd, "Monk Eindhoven")
+    sched = ScheduleHandler(data)
+    sniper_obj = ToploggerSniper(usr, pwd, "Monk Eindhoven")
 
     update_thread = threading.Timer(10.0, update, args=(sniper_obj, sched))
 

@@ -19,15 +19,11 @@ def __convert_am_pm(time: datetime.time, am_pm: str) -> datetime.time:
 
 
 def time_conversion(input_time: str) -> datetime.time:
-    """Convert a AM/PM time to 24 hours
-    :param input_time: (str) A 12 hour time with AM/PM string.
-    """
-    stripped_time = input_time.strip()
-    hour, minute = stripped_time[:-2].split(":")
-    time = datetime.time(int(hour), int(minute))
-
-    am_pm = stripped_time[-2:]
-    return __convert_am_pm(time, am_pm)
+    """Convert a input string to datetime.time"""
+    hour, minute = input_time.split(":")
+    # TODO: There could be an am/pm time definition here?
+    #       it seems that the side was updated to 24hr time
+    return datetime.time(int(hour), int(minute))
 
 
 class ShiftTime:
