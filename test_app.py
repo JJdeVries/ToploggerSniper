@@ -1,7 +1,3 @@
-"""
-Main functionality.
-"""
-
 import os
 import threading
 
