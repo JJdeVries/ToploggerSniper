@@ -10,7 +10,7 @@ import webbot
 from . import shift_time, schedule
 
 _TIMESPLIT = "—"
-_PRINT_TIMING = True
+_PRINT_TIMING = False
 
 
 def timeit(method: typing.Callable):
@@ -33,7 +33,7 @@ class ToploggerSniper:
     """ The sniper class."""
 
     def __init__(self, username: str = "", password: str = "", gym: str = ""):
-        self.__browser: webbot.Browser = webbot.Browser(showWindow=True)
+        self.__browser: webbot.Browser = webbot.Browser(showWindow=False)
         self.__browser.go_to("https://app.toplogger.nu")
 
         self.__usr = username
@@ -104,16 +104,12 @@ class ToploggerSniper:
     @timeit
     def _goto_reservations(self, area: str = None):
         # Let's check if we're already in reservations
-        tic = time.perf_counter()
         header_title = self.__browser.find_elements(
             "Reservations", tag="div", classname="v-toolbar__title", loose_match=False
         )[0]
-        toc = time.perf_counter()
-        print(f"This took {toc - tic:.4}")
 
         if header_title.text != "Reservations":
             # Now we navigate to the reservations page
-            print("Going to reservation page")
             self.__browser.click(classname="v-input__slot")
             self.__browser.click("Reservations")
             time.sleep(0.5)
@@ -121,18 +117,15 @@ class ToploggerSniper:
         # Now select the area (if applicable)
         if area is not None:
             # First expand the dropdown list.
-            tic = time.perf_counter()
             curr_elems = self.__browser.find_elements(
                 area, tag="div", classname="v-select__selection", loose_match=False
             )
-            toc = time.perf_counter()
-            print(f"Getting area took {toc - tic}")
 
             if not curr_elems or curr_elems[0].text != area:
-                if curr_elems:
-                    print(f"Changing area {curr_elems[0].text} into {area}")
                 # Hopefully this will always work?
-                self.__browser.click(tag="div", classname="v-input__slot")
+                self.__browser.click(
+                    "Select your area", tag="div", classname="v-input__slot"
+                )
                 self.__browser.click(area, tag="div")
 
     @timeit
@@ -141,12 +134,15 @@ class ToploggerSniper:
         # TODO: Year picking!
         # TODO: We could check the current selected date
         #       or filter on if we request a different month than the current month?
-        self.__browser.click(tag="div", classname="v-date-picker-header")
-        month_name = calendar.month_name[month][:3].upper()
-        time.sleep(0.1)
-        self.__browser.click(month_name, tag="div")
-        time.sleep(0.1)
-        self.__browser.click(str(day), tag="div")
+        month_name = calendar.month_name[month]
+        month_elem = self.__browser.find_elements(month_name, loose_match=False)
+
+        if not (month_elem and month_elem[0].text.startswith(month_name)):
+            self.__browser.click(tag="div", classname="v-date-picker-header")
+            time.sleep(0.1)
+            self.__browser.click(month_name, tag="div")
+            time.sleep(0.1)
+        self.__browser.click(str(day), tag="div", loose_match=False)
 
     @timeit
     def _find_shifts(self) -> typing.List[shift_time.ShiftTime]:
@@ -183,7 +179,6 @@ class ToploggerSniper:
         """ Update the shift state of the given schedule instance."""
         # Should we check whether we're still logged in? / gym chosen
         self._goto_reservations(sched_inst.area)
-
         self._goto_day(sched_inst.time.month, sched_inst.time.day)
 
         shifts = self._find_shifts()

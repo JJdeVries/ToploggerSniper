@@ -61,7 +61,12 @@ class ScheduleInstance:
         if self.state != new_state:
             self._state = new_state
             self._statechange = True
-            print(f"Climbing at {self.area} at {self.time} is now: {self._state}")
+
+    def __str__(self) -> str:
+        area_str = f"at {self.area} " if self.area else ""
+        return (
+            f"Climbing {area_str}at {self.time:%A %d-%B %H:%M)} is: {self._state.name}"
+        )
 
 
 class ScheduleHandler:

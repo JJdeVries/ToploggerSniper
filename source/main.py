@@ -17,6 +17,10 @@ def update(sniper_obj: ToploggerSniper, sched: ScheduleHandler):
     for inst in sched.get_dates():
         sniper_obj.update_shift_state(inst)
 
+        if inst.has_update:
+            print(inst)
+            inst.processed()
+
 
 def main():
     """ The actual running method."""
@@ -46,10 +50,10 @@ def main():
     sched = ScheduleHandler(data)
     sniper_obj = ToploggerSniper(usr, pwd, sched.gym)
 
-    update_thread = threading.Timer(300.0, update, args=(sniper_obj, sched))
+    update_thread = threading.Timer(30.0, update, args=(sniper_obj, sched))
 
-    # update_thread.start()
-    update(sniper_obj, sched)
+    update_thread.start()
+    # update(sniper_obj, sched)
     if update_thread.is_alive():
         input("Press [enter] to stop thread\n")
         update_thread.cancel()
