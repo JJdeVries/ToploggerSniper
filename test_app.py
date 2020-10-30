@@ -2,17 +2,32 @@ import os
 import threading
 
 import ruamel.yaml
-from app.sniper import ToploggerSniper
-from app.schedule import ScheduleHandler
+from app.toplogger import ToploggerApi
+from app.schedule import ScheduleHandler, ShiftState
 
 
-def update(sniper_obj: ToploggerSniper, sched: ScheduleHandler):
+def update(sniper_obj: ToploggerApi, sched: ScheduleHandler):
     """ The update method."""
     sched.update()
 
+    taken_shifts = sniper_obj.get_reservations()
     for inst in sched.get_dates():
-        sniper_obj.update_shift_state(inst)
+        # First let's see if the shift is already taken.
+        for s in taken_shifts:
+            if s.area == inst.area and s.is_in(inst.time):
+                inst.state = ShiftState.TAKEN
+                break
+        else:
+            # Let's see if the shift is available or taken.
+            for s in sniper_obj.get_available_shifts(inst.time, inst.area):
+                if s.is_in(inst.time):
+                    inst.state = ShiftState.AVAILABLE
+                    break
+            else:
+                inst.state = ShiftState.FULL
 
+    # And let's print all the updates
+    for inst in sched.get_dates():
         if inst.has_update:
             print(inst)
             inst.processed()
@@ -44,12 +59,14 @@ def main():
         data = yaml.load(config_file)
 
     sched = ScheduleHandler(data)
-    sniper_obj = ToploggerSniper(usr, pwd, sched.gym)
+    sniper_obj = ToploggerApi()
+    sniper_obj.login(usr, pwd)
+    sniper_obj.pick_gym(data["gym"])
 
     update_thread = threading.Timer(30.0, update, args=(sniper_obj, sched))
 
-    update_thread.start()
-    # update(sniper_obj, sched)
+    # update_thread.start()
+    update(sniper_obj, sched)
     if update_thread.is_alive():
         input("Press [enter] to stop thread\n")
         update_thread.cancel()
